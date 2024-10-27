@@ -1,4 +1,5 @@
 #include "xx_auto.hpp"
+#include "xx_auto_rc.h"
 #undef min
 #undef max
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "xx_auto_rc.h"
-
 #include <Windows.h>
 
 #include <string>
