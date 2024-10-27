@@ -1,0 +1,3 @@
+#include "xx_auto_rc.h"
+
+IDI_ICON ICON "xx_auto.ico"
