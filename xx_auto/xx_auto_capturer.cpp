@@ -18,13 +18,12 @@ namespace xx_auto // capturer
         struct capturer_pool
         {
             int capturer_count = 0;
-            const bool is_supported = winrt::Windows::Graphics::Capture::GraphicsCaptureSession::IsSupported();
             winrt::com_ptr<ID3D11Device> d3dDevice{nullptr};
             winrt::com_ptr<ID3D11DeviceContext> d3dDeviceContext{nullptr};
             winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice device{nullptr};
             bool operator++()
             {
-                if (is_supported && ++capturer_count == 1)
+                if (winrt::Windows::Graphics::Capture::GraphicsCaptureSession::IsSupported() && ++capturer_count == 1)
                 {
                     winrt::init_apartment(winrt::apartment_type::single_threaded);
                     if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, d3dDevice.put(), nullptr, d3dDeviceContext.put())) &&
@@ -165,6 +164,9 @@ namespace xx_auto // capturer
     };
 
     capturer::capturer(HWND target) : _target(target), _impl(new capturer_impl(target)) {}
+    capturer::capturer(const window &window) : capturer(window.hwnd()) {}
+    capturer::capturer(const widget &widget) : capturer(widget.hwnd()) {}
+    capturer::capturer(capturer &&other) { *this = std::move(other); }
     capturer &capturer::operator=(capturer &&other)
     {
         delete _impl;
@@ -174,6 +176,7 @@ namespace xx_auto // capturer
     }
     capturer::~capturer() { delete _impl; }
 
+    capturer::operator bool() const { return valid(); }
     bool capturer::valid() const { return _impl && _impl->valid(); }
     bool capturer::capture(image &output) const { return _impl && _impl->capture(output); }
 }

@@ -1,4 +1,5 @@
 #include "xx_auto.hpp"
+#include "xx_auto_internal.hpp"
 #include "xx_auto_rc.h"
 #undef min
 #undef max
@@ -7,8 +8,6 @@
 
 namespace xx_auto // application
 {
-    extern void init_ocr(const wchar_t *det_path, const wchar_t *cls_path, const wchar_t *rec_path, const wchar_t *characters_path);
-    extern void uninit_ocr();
     class app_impl
     {
         friend widget widget::create(const std::wstring &title_name, widget::proc_t widget_proc);
@@ -23,10 +22,10 @@ namespace xx_auto // application
         inline static bool class_registered = false;
 
         inline static bool _running = false;
-        inline static widget _app_widget = widget::none;
+        inline static widget _app_widget = widget();
         inline static std::unordered_map<HWND, widget::proc_t> _widgets{};
         inline static NOTIFYICONDATA _app_notify{};
-        inline static menu _app_notify_menu = menu::none;
+        inline static menu _app_notify_menu = menu();
         inline static menu::proc_t _app_notify_menu_proc = nullptr;
         inline static std::vector<HMENU> _menus{};
 
@@ -98,7 +97,7 @@ namespace xx_auto // application
             _app_widget = create_widget(APP_CLASS_NAME, app_widget_proc, APP_CLASS_NAME);
             if (_app_widget)
             {
-                init_ocr(L"models/PPOCRv3/ch_PP-OCRv3_det.onnx", L"models/PPOCRv3/ch_ppocr_mobile_v2.0_cls.onnx", L"models/PPOCRv3/ch_PP-OCRv3_rec.onnx", L"models/PPOCRv3/ppocr_keys_v1.txt");
+                internal::init_ocr(L"models/PPOCRv3/ch_PP-OCRv3_det.onnx", L"models/PPOCRv3/ch_ppocr_mobile_v2.0_cls.onnx", L"models/PPOCRv3/ch_PP-OCRv3_rec.onnx", L"models/PPOCRv3/ppocr_keys_v1.txt");
 
                 _running = true;
                 _app_widget.style(WS_OVERLAPPED, false);
@@ -114,13 +113,13 @@ namespace xx_auto // application
                 wcscpy_s(_app_notify.szTip, sizeof(_app_notify.szTip) / sizeof(_app_notify.szTip[0]), APP_CLASS_NAME);
                 Shell_NotifyIconW(NIM_ADD, &_app_notify);
 
-                notify_menu(menu::none, nullptr);
+                notify_menu(menu(), nullptr);
             }
             return !!_app_widget;
         }
         static bool destroy()
         {
-            uninit_ocr();
+            internal::uninit_ocr();
 
             Shell_NotifyIconW(NIM_DELETE, &_app_notify);
             _widgets.clear();
@@ -129,8 +128,8 @@ namespace xx_auto // application
             _menus.clear();
             _app_notify = {};
             _app_notify_menu_proc = nullptr;
-            _app_notify_menu = menu::none;
-            _app_widget = widget::none;
+            _app_notify_menu = menu();
+            _app_widget = widget();
             _running = false;
             return true;
         }
@@ -269,10 +268,9 @@ namespace xx_auto // application
     }
     widget widget::create(const std::wstring &title_name, widget::proc_t widget_proc) { return app_impl::create_widget(title_name, widget_proc); }
 
-
     void app::name(const std::wstring &name) { app_impl::name(name); }
     bool app::notify_menu(const menu &menu, menu::proc_t menu_proc) { return app_impl::notify_menu(menu, menu_proc); }
     bool app::exit() { return app_impl::exit(); }
 
-    int app::run(entry_t entry, bool singleton) { return app_impl::run(entry, singleton); }
+    int internal::run_entry(app::entry_t entry, bool singleton) { return app_impl::run(entry, singleton); }
 }

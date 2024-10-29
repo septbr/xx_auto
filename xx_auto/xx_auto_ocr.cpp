@@ -535,16 +535,17 @@ namespace xx_auto
     };
 }
 
+#include "xx_auto_internal.hpp"
 namespace xx_auto // top
 {
     const OcrxOnnx *ocr_impl = nullptr;
-    extern void init_ocr(const wchar_t *det_path, const wchar_t *cls_path, const wchar_t *rec_path, const wchar_t *characters_path)
+    void internal::init_ocr(const wchar_t *det_path, const wchar_t *cls_path, const wchar_t *rec_path, const wchar_t *characters_path)
     {
         if (ocr_impl)
             delete ocr_impl;
         ocr_impl = new OcrxOnnx(det_path, cls_path, rec_path, characters_path);
     }
-    extern void uninit_ocr()
+    void internal::uninit_ocr()
     {
         if (ocr_impl)
         {
