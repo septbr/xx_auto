@@ -209,7 +209,7 @@ namespace xx_auto // window
         xx_auto::menu menu(const xx_auto::menu &menu) const;
     };
 
-    class capturer
+    class XX_AUTO_API capturer
     {
     private:
         class capturer_impl;

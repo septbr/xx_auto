@@ -98,7 +98,7 @@ namespace xx_auto // capturer
     public:
         capturer_impl(HWND target)
         {
-            if (!++pool)
+            if (!IsWindow(target) || !++pool)
                 return;
             auto activation_factory = winrt::get_activation_factory<winrt::Windows::Graphics::Capture::GraphicsCaptureItem>();
             auto interop_factory = activation_factory.as<IGraphicsCaptureItemInterop>();

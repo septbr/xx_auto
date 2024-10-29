@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
-project(xx_auto VERSION 0.1.0)
+project(xx_auto VERSION 0.1.1)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -18,15 +18,8 @@ target_sources(libxx_auto PRIVATE
     "./xx_auto/xx_auto_app.cpp"
 )
 
-add_library(xx_auto_entry SHARED)
-target_compile_options(xx_auto_entry PRIVATE /utf-8)
-target_compile_definitions(xx_auto_entry PRIVATE UNICODE _UNICODE)
-target_link_libraries(xx_auto_entry PRIVATE "libxx_auto")
-target_sources(xx_auto_entry PRIVATE
-    "./xx_auto/xx_auto_entry.cpp"
-)
-
 add_executable(xx_auto WIN32)
+set_target_properties(xx_auto PROPERTIES OUTPUT_NAME_DEBUG "xx_autod" OUTPUT_NAME_RELEASE "xx_auto")
 target_compile_options(xx_auto PRIVATE /utf-8)
 target_compile_definitions(xx_auto PRIVATE UNICODE _UNICODE)
 target_link_libraries(xx_auto PRIVATE "libxx_auto")
@@ -35,8 +28,17 @@ target_sources(xx_auto PRIVATE
     "./xx_auto/xx_auto_exe.cpp"
 )
 
+add_library(xx_auto_entry SHARED)
+set_target_properties(xx_auto_entry PROPERTIES OUTPUT_NAME_DEBUG "xx_auto_entryd" OUTPUT_NAME_RELEASE "xx_auto_entry")
+target_compile_options(xx_auto_entry PRIVATE /utf-8)
+target_compile_definitions(xx_auto_entry PRIVATE UNICODE _UNICODE)
+target_link_libraries(xx_auto_entry PRIVATE "libxx_auto")
+target_sources(xx_auto_entry PRIVATE
+    "./xx_auto/xx_auto_entry.cpp"
+)
+
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/xx_auto")
-install(TARGETS libxx_auto DESTINATION "lib")
+install(TARGETS libxx_auto DESTINATION "bin")
 install(TARGETS xx_auto_entry DESTINATION "bin")
 install(TARGETS xx_auto DESTINATION "bin")
 install(FILES "./xx_auto/xx_auto.hpp" DESTINATION "include")

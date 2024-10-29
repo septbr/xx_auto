@@ -13,6 +13,7 @@ LRESULT widget_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 extern "C" __declspec(dllexport) void xx_auto_entry()
 {
-   auto w = xx_auto::widget::create(L"xx_auto", widget_proc);
-   w.show();
+   auto widget = xx_auto::widget::create(L"xx_auto", widget_proc);
+   widget.resize(600, 400);
+   widget.show();
 }
