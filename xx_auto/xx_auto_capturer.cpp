@@ -2,40 +2,34 @@
 #undef min
 #undef max
 
-#include <d3d11.h>
-#include <winrt/Windows.Graphics.Capture.h>
-#include <winrt/Windows.Foundation.h>
-#include <Windows.Graphics.Capture.h>
 #include <Windows.Graphics.Capture.Interop.h>
+#include <Windows.Graphics.Capture.h>
 #include <Windows.Graphics.DirectX.Direct3D11.Interop.h>
+#include <d3d11.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Graphics.Capture.h>
 #pragma comment(lib, "WindowsApp.lib")
 
 namespace xx_auto // capturer
 {
-    class capturer::capturer_impl
-    {
+    class capturer::capturer_impl {
     private:
-        struct capturer_pool
-        {
+        struct capturer_pool {
             int capturer_count = 0;
             winrt::com_ptr<ID3D11Device> d3dDevice{nullptr};
             winrt::com_ptr<ID3D11DeviceContext> d3dDeviceContext{nullptr};
             winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice device{nullptr};
-            bool operator++()
-            {
-                if (winrt::Windows::Graphics::Capture::GraphicsCaptureSession::IsSupported() && ++capturer_count == 1)
-                {
+            bool operator++() {
+                if (winrt::Windows::Graphics::Capture::GraphicsCaptureSession::IsSupported() && ++capturer_count == 1) {
                     winrt::init_apartment(winrt::apartment_type::single_threaded);
                     if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, d3dDevice.put(), nullptr, d3dDeviceContext.put())) &&
-                        FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, d3dDevice.put(), nullptr, d3dDeviceContext.put())))
-                    {
+                        FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, d3dDevice.put(), nullptr, d3dDeviceContext.put()))) {
                         --*this;
                         return false;
                     }
                     auto dxgiDevice = d3dDevice.as<IDXGIDevice>();
                     winrt::com_ptr<::IInspectable> inspectable;
-                    if (FAILED(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.get(), inspectable.put())))
-                    {
+                    if (FAILED(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.get(), inspectable.put()))) {
                         --*this;
                         return false;
                     }
@@ -43,10 +37,8 @@ namespace xx_auto // capturer
                 }
                 return capturer_count > 0;
             }
-            void operator--()
-            {
-                if (capturer_count > 0 && --capturer_count == 0)
-                {
+            void operator--() {
+                if (capturer_count > 0 && --capturer_count == 0) {
                     d3dDevice = nullptr;
                     d3dDeviceContext = nullptr;
                     device = nullptr;
@@ -68,23 +60,18 @@ namespace xx_auto // capturer
         capturer_impl(capturer_impl &&other) = delete;
         capturer_impl &operator=(capturer_impl &&other) = delete;
 
-        void on_frame_arrived(winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const &sender, winrt::Windows::Foundation::IInspectable const &)
-        {
-            if (frame = frame_pool.TryGetNextFrame())
-            {
+        void on_frame_arrived(winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const &sender, winrt::Windows::Foundation::IInspectable const &) {
+            if (frame = sender.TryGetNextFrame()) {
                 auto frameSize = frame.ContentSize();
-                if (frameSize.Width != size.Width || frameSize.Height != size.Height)
-                {
+                if (frameSize.Width != size.Width || frameSize.Height != size.Height) {
                     size = frameSize;
-                    frame_pool.Recreate(pool.device, pixel_format, 2, size);
+                    sender.Recreate(pool.device, pixel_format, 2, size);
                 }
             }
         }
         void on_item_closed(const winrt::Windows::Graphics::Capture::GraphicsCaptureItem &, const winrt::Windows::Foundation::IInspectable &) { close(); }
-        void close()
-        {
-            if (!item)
-                return;
+        void close() {
+            if (!item) return;
             size.Width = size.Height = 0;
             frame = nullptr;
             item = nullptr;
@@ -96,14 +83,11 @@ namespace xx_auto // capturer
         }
 
     public:
-        capturer_impl(HWND target)
-        {
-            if (!IsWindow(target) || !++pool)
-                return;
+        capturer_impl(window target) {
+            if (!target || !++pool) return;
             auto activation_factory = winrt::get_activation_factory<winrt::Windows::Graphics::Capture::GraphicsCaptureItem>();
             auto interop_factory = activation_factory.as<IGraphicsCaptureItemInterop>();
-            if (FAILED(interop_factory->CreateForWindow(target, winrt::guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), reinterpret_cast<void **>(winrt::put_abi(item)))))
-            {
+            if (FAILED(interop_factory->CreateForWindow(target.hwnd(), winrt::guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), reinterpret_cast<void **>(winrt::put_abi(item))))) {
                 --pool;
                 item = nullptr;
                 return;
@@ -117,11 +101,12 @@ namespace xx_auto // capturer
             item.Closed({this, &capturer_impl::on_item_closed});
             session.StartCapture();
         }
+        ~capturer_impl() { close(); }
+
+    public:
         bool valid() const { return item != nullptr; }
-        bool capture(image &rgb_output) const
-        {
-            if (!item || !frame)
-                return false;
+        bool snapshot(image &rgb_output, const rect &rect) const {
+            if (!item || !frame) return false;
 
             winrt::com_ptr<ID3D11Texture2D> texture;
             auto access = frame.Surface().as<Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
@@ -144,39 +129,36 @@ namespace xx_auto // capturer
             if (FAILED(pool.d3dDeviceContext->Map(stagingTexture.get(), 0, D3D11_MAP_READ, 0, &resource)))
                 return false;
 
-            if (textureDesc.Width != rgb_output.width || textureDesc.Height != rgb_output.height || rgb_output.channel != 3)
-            {
-                rgb_output.width = textureDesc.Width;
-                rgb_output.height = textureDesc.Height;
-                rgb_output.channel = 3;
-                rgb_output.data = std::vector<unsigned char>(rgb_output.width * rgb_output.height * rgb_output.channel, 0);
-            }
+            auto output_rect = xx_auto::rect{rect.x >= 0 ? rect.x : 0, rect.y >= 0 ? rect.y : 0, rect.width > 0 ? rect.width : static_cast<int>(textureDesc.Width), rect.height > 0 ? rect.height : static_cast<int>(textureDesc.Height)};
+            if (output_rect.width != rgb_output.width || output_rect.height != rgb_output.height || rgb_output.channel != 3)
+                rgb_output = image(output_rect.width, output_rect.height, 3);
 
             auto src_data = reinterpret_cast<const unsigned char *>(resource.pData);
-            for (auto y = 0; y < rgb_output.height; ++y)
-            {
-                for (auto x = 0; x < rgb_output.width; ++x)
-                    std::memcpy(&rgb_output.data[(y * rgb_output.width + x) * 3], src_data + y * resource.RowPitch + x * 4, 3);
+            for (auto width = std::min(output_rect.width, static_cast<int>(textureDesc.Width - output_rect.x)), height = std::min(output_rect.height, static_cast<int>(textureDesc.Height - output_rect.y)), y = 0; y < height; ++y) {
+                for (auto x = 0; x < width; ++x)
+                    std::memcpy(&rgb_output.data[(y * rgb_output.width + x) * 3], src_data + (y + output_rect.y) * resource.RowPitch + (x + output_rect.x) * 4, 3);
             }
             pool.d3dDeviceContext->Unmap(stagingTexture.get(), 0);
             return true;
         }
     };
 
-    capturer::capturer(HWND target) : _target(target), _impl(new capturer_impl(target)) {}
-    capturer::capturer(const window &window) : capturer(window.hwnd()) {}
-    capturer::capturer(const widget &widget) : capturer(widget.hwnd()) {}
+    capturer::capturer() : capturer(window()) {}
+    capturer::capturer(const window &target) : _target(target), _impl(new capturer_impl(target)) {}
     capturer::capturer(capturer &&other) { *this = std::move(other); }
-    capturer &capturer::operator=(capturer &&other)
-    {
+    capturer &capturer::operator=(capturer &&other) {
         delete _impl;
+        _target = other._target;
         _impl = other._impl;
+        other._target = window();
         other._impl = nullptr;
         return *this;
     }
     capturer::~capturer() { delete _impl; }
 
+    window capturer::target() const { return _target; }
     capturer::operator bool() const { return valid(); }
     bool capturer::valid() const { return _impl && _impl->valid(); }
-    bool capturer::capture(image &output) const { return _impl && _impl->capture(output); }
-}
+    bool capturer::snapshot(image &output) const { return _impl && _impl->snapshot(output, rect{}); }
+    bool capturer::snapshot(image &output, const rect &rect) const { return _impl && _impl->snapshot(output, rect); }
+} // namespace xx_auto

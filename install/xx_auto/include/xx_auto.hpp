@@ -2,9 +2,9 @@
 
 #include <Windows.h>
 
+#include <functional>
 #include <string>
 #include <vector>
-#include <functional>
 
 #ifdef XX_AUTO_SHARED
 #define XX_AUTO_API __declspec(dllexport)
@@ -15,16 +15,17 @@
 namespace xx_auto // window
 {
     template <typename T>
-    struct __point
-    {
+    struct __point {
         T x, y;
-        __point(T x = 0, T y = 0);
-        __point(const __point &other);
         __point &operator=(const __point &other);
         __point operator+(const __point &other) const;
         __point operator-(const __point &other) const;
+        __point operator*(T value) const;
+        __point operator/(T value) const;
         __point &operator+=(const __point &other);
         __point &operator-=(const __point &other);
+        __point &operator*=(T value);
+        __point &operator/=(T value);
         bool operator==(const __point &other) const;
         bool operator!=(const __point &other) const;
         // template <typename U>
@@ -34,21 +35,18 @@ namespace xx_auto // window
     using pointf = __point<float>;
     using pointd = __point<double>;
 
-    struct rect
-    {
-        long x;
-        long y;
-        long width;
-        long height;
+    struct rect {
+        int x;
+        int y;
+        int width;
+        int height;
     };
-    struct color
-    {
+    struct color {
         int r;
         int g;
         int b;
     };
-    struct XX_AUTO_API image
-    {
+    struct XX_AUTO_API image {
         int width, height, channel;
         std::vector<unsigned char> data;
 
@@ -64,16 +62,14 @@ namespace xx_auto // window
         image limit(int new_width, int new_height, bool width_limit = false, bool height_limit = false) const;
     };
 
-    enum class value_editor : char
-    {
+    enum class value_editor : char {
         replace,
         append,
         remove,
     };
 
     class window;
-    class XX_AUTO_API menu
-    {
+    class XX_AUTO_API menu {
     public:
         using proc_t = std::function<LRESULT(unsigned int id, bool command)>;
         static menu create(bool popup = false);
@@ -93,27 +89,25 @@ namespace xx_auto // window
         bool operator!=(HMENU hmenu) const;
         operator bool() const;
 
-        bool append(unsigned short id, const std::wstring &title) const;
+        bool append(unsigned int id, const std::wstring &title) const;
         bool append(const menu &submenu, const std::wstring &title) const;
         bool append() const;
-        bool insert(unsigned short where, unsigned short id, const std::wstring &title, bool use_position = false) const;
-        bool insert(unsigned short where, const menu &submenu, const std::wstring &title, bool use_position = false) const;
-        bool insert(unsigned short where, bool use_position = false) const;
-        bool remove(unsigned short where, bool use_position = false) const;
+        bool insert(unsigned int where, unsigned int id, const std::wstring &title, bool use_position = false) const;
+        bool insert(unsigned int where, const menu &submenu, const std::wstring &title, bool use_position = false) const;
+        bool insert(unsigned int where, bool use_position = false) const;
+        bool remove(unsigned int where, bool use_position = false) const;
         bool destroy() const;
 
-        bool enable(unsigned short where, bool enabled, bool use_position = false) const;
-        bool modify(unsigned short where, const std::wstring &title, bool use_position = false) const;
-        bool check(unsigned short where, bool checked, bool use_position = false) const;
+        bool enable(unsigned int where, bool enabled, bool use_position = false) const;
+        bool modify(unsigned int where, const std::wstring &title, bool use_position = false) const;
+        bool check(unsigned int where, bool checked, bool use_position = false) const;
 
         bool show_as_context(const window &window) const;
     };
 
-    class XX_AUTO_API window
-    {
+    class XX_AUTO_API window {
     public:
-        enum class show_stat
-        {
+        enum class show_stat {
             hide = SW_HIDE,
             show = SW_SHOW,
             show_noactive = SW_SHOWNOACTIVATE,
@@ -123,8 +117,7 @@ namespace xx_auto // window
         };
 
     private:
-        struct window_finds_handler
-        {
+        struct window_finds_handler {
             const wchar_t *title_name;
             const wchar_t *class_name;
             std::vector<window> &results;
@@ -187,15 +180,25 @@ namespace xx_auto // window
         long style(long style, value_editor setter, bool ext = false) const;
         xx_auto::rect rect(bool client) const;
         xx_auto::rect rect() const;
-        bool rect(long x, long y, long width, long height) const;
+        bool rect(int x, int y, int width, int height) const;
         bool rect(const xx_auto::rect &rect) const;
-        bool move(long x, long y) const;
-        bool resize(long width, long height) const;
-        bool click(long x, long y) const;
+        point position() const;
+        bool position(int x, int y) const;
+        bool position(const xx_auto::point &point) const;
+        bool resize(int width, int height) const;
+        point screen_point(int x, int y) const;
+        point screen_point(const point &client_point) const;
+        point client_point(int x, int y) const;
+        point client_point(const point &screen_point) const;
+        bool click(int x, int y) const;
+        bool click(const xx_auto::point &point) const;
+        bool drag(int x, int y, int horizontal, int vertical) const;
+        bool drag(const xx_auto::point &point, int horizontal, int vertical) const;
+        bool drag(int x, int y, const xx_auto::point &direction) const;
+        bool drag(const xx_auto::point &from, const xx_auto::point &direction) const;
     };
 
-    class XX_AUTO_API widget : public window
-    {
+    class XX_AUTO_API widget : public window {
     public:
         using proc_t = std::function<LRESULT(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)>;
         inline static constexpr auto default_proc = DefWindowProcW;
@@ -209,36 +212,35 @@ namespace xx_auto // window
         xx_auto::menu menu(const xx_auto::menu &menu) const;
     };
 
-    class XX_AUTO_API capturer
-    {
+    class XX_AUTO_API capturer {
     private:
         class capturer_impl;
 
     private:
         capturer_impl *_impl;
-        HWND _target;
+        window _target;
 
     public:
-        capturer(HWND target = nullptr);
-        capturer(const window &window);
-        capturer(const widget &widget);
+        capturer();
+        capturer(const window &target);
         capturer &operator=(const capturer &) = delete;
         capturer(capturer &&other);
         capturer &operator=(capturer &&other);
         ~capturer();
 
+        window target() const;
         operator bool() const;
         bool valid() const;
-        bool capture(image &rgb_output) const;
+        bool snapshot(image &rgb_output) const;
+        bool snapshot(image &rgb_output, const rect &rect) const;
     };
-}
+} // namespace xx_auto
 
 namespace xx_auto // top
 {
     XX_AUTO_API window desktop();
 
-    struct ocr_result
-    {
+    struct ocr_result {
         point box[3];
         float score;
         std::string text;
@@ -252,15 +254,14 @@ namespace xx_auto // top
     XX_AUTO_API void sleep(unsigned long milliseconds);
     XX_AUTO_API bool execute(const std::wstring &command, const std::wstring &args, const std::wstring &working_directory);
     XX_AUTO_API bool execute(const std::wstring &command, const std::wstring &args);
-}
+} // namespace xx_auto
 
 namespace xx_auto // application
 {
-    struct XX_AUTO_API app final
-    {
+    struct XX_AUTO_API app final {
         using entry_t = std::function<void()>;
         static void name(const std::wstring &name);
         static bool notify_menu(const menu &menu, menu::proc_t menu_proc);
         static bool exit();
     };
-}
+} // namespace xx_auto
